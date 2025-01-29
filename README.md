@@ -52,7 +52,7 @@ store the required information somewhere save and pass it to the constructor of 
 const userKey = "<your-user-key>"
 const pageId = "<your-page-id>"
 
-const client = new KoFiAlertClient({
+const client = new KoFiAlertsClient({
     userKey: userKey,
     pageId: pageId,
     // optional, see more on @microsoft/signalr type IHttpConnectionOptions
