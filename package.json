@@ -1,5 +1,5 @@
 {
-  "name": "@ntf/kof-alerts",
+  "name": "@ntf/kofi-alerts",
   "version": "1.0.0",
   "description": "Get alerts from Ko-Fi via JavaScript",
   "files": [
