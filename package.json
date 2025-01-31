@@ -1,6 +1,6 @@
 {
   "name": "@ntf/kofi-alerts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Get alerts from Ko-Fi via JavaScript",
   "files": [
     "./dist/**/*"
@@ -20,7 +20,8 @@
   },
   "scripts": {
     "build": "pkgroll --src source",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "pnpm run build",
+    "test": "tsx ./source/test.ts"
   },
   "repository": {
     "type": "git",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "typescript": "latest",
-    "pkgroll": "latest"
+    "pkgroll": "latest",
+    "tsx": "latest"
   }
 }

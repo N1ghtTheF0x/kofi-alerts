@@ -1,27 +1,18 @@
-import { kofi_negotiate_access_token, kofi_negotiate_token } from "./negotiate"
+import { IActivityAlert, IConfigAlert, IDonationAlert, IGoalAlert, KoFi, KoFiAlert } from "./alerts"
+import { negotiateAccessToken, negotiateToken } from "./negotiate"
 import { HubConnection, HubConnectionBuilder, IHttpConnectionOptions, LogLevel } from "@microsoft/signalr"
-
-const ALERT_IMAGE_REGEX = /<div class='sa-img'>(.*)<\/div>/gm
-const ALERT_LABEL_REGEX = /<div class='sa-label'>(.*)<\/div>/gm
-const ALERT_LABEL_CONTENT_REGEX = /Got (.+) from (.+)!/gm
-
-interface IKofiAlertEvents
-{
-    "ready": []
-    "close": [err?: Error]
-    "alert": [alert: KoFiAlertsClient.IAlert]
-}
-
-type KofiAlertEventCallbacks = {
-    [K in keyof IKofiAlertEvents as `on${K}`]?: (...args: IKofiAlertEvents[K]) => void
-}
+import { ALERT_IMAGE_REGEX, ALERT_LABEL_REGEX, ALERT_LABEL_CONTENT_REGEX, TokenError, AccessTokenError } from "./utils"
 
 /**
  * A Ko-Fi alerts client
  */
-class KoFiAlertsClient implements KofiAlertEventCallbacks
+export class KoFiAlertsClient
 {
     private _connection?: HubConnection
+    /**
+     * The last received alert from ko-fi
+     */
+    public lastAlert?: KoFiAlert
     /**
      * gets called when the client is ready for incoming alerts
      */
@@ -33,7 +24,7 @@ class KoFiAlertsClient implements KofiAlertEventCallbacks
     /**
      * gets called when the client receives an alert
      */
-    public onalert?: (alert: KoFiAlertsClient.IAlert) => void
+    public onalert?: (alert: KoFiAlert) => void
     private readonly _options: Readonly<KoFiAlertsClient.IOptions>
     /**
      * Create a new Ko-Fi alert client instance
@@ -45,13 +36,15 @@ class KoFiAlertsClient implements KofiAlertEventCallbacks
     }
     /**
      * Connect the client to the servers, this may take some time
+     * @throws {TokenError} failed to receive the token
+     * @throws {AccessTokenError} failed to receive the access token
      */
     public async connect()
     {
         // get the token with the key
-        const {token} = await kofi_negotiate_token({userKey: this._options.userKey})
+        const {token} = await negotiateToken({userKey: this._options.userKey})
         // get the access token with the token and page id
-        const {url,accessToken} = await kofi_negotiate_access_token({negotiationToken: token,pageId: this._options.pageId})
+        const {url,accessToken} = await negotiateAccessToken({negotiationToken: token,pageId: this._options.pageId})
         // this hub connection builder is 1:1 of the JavaScript code they use, except for logger
         this._connection = new HubConnectionBuilder()
         .withUrl(url,{
@@ -63,8 +56,11 @@ class KoFiAlertsClient implements KofiAlertEventCallbacks
         // connect to server
         await this._connection.start()
         this.onready?.()
-        // listen on "newStreamAlert", the name of the alert message
-        this._connection.on("newStreamAlert",this._on_alert.bind(this))
+        // listen on the events that ko-fi sends via signalr
+        this._connection.on("newStreamAlert",this._on_new_stream_alert.bind(this))
+        this._connection.on("updateGoalOverlay",this._on_update_goal_overlay.bind(this))
+        this._connection.on("updateAlertActivity",this._on_update_alert_activity.bind(this))
+        // listen on general signalr events
         this._connection.onclose(this._on_close.bind(this))
     }
     /**
@@ -79,11 +75,19 @@ class KoFiAlertsClient implements KofiAlertEventCallbacks
     {
         this.onclose?.(err)
     }
-    private _on_alert(message: string,ttsMessage: string | null)
+    private _send_config_alert()
+    {
+        const config: IConfigAlert = {
+            type: "config"
+        }
+        this.onalert?.(config)
+        this.lastAlert = config
+    }
+    private _on_new_stream_alert(message: string,ttsMessage: string | null)
     {
         // this might happen if you update the config on the website but isn't required here
         if(message.includes(`configreset_${this._options.userKey}`))
-            return
+            return this._send_config_alert()
         // TODO: is this also html?
         // get the image, this returns an empty string if not found
         const image = ALERT_IMAGE_REGEX.exec(message)?.[1] as string
@@ -94,18 +98,43 @@ class KoFiAlertsClient implements KofiAlertEventCallbacks
         const amount = parseFloat(labelContent?.[1] ?? "0.00")
         const name = labelContent?.[2] ?? "Someone"
         // you've got money!
-        const alert: KoFiAlertsClient.IAlert = {
+        const donation: IDonationAlert = {
+            type: "donation",
             raw: message,
             tts: ttsMessage ?? undefined,
-            name,
+            username: name,
             amount,
             image: image.length === 0 ? undefined : image
         }
-        this.onalert?.(alert)
+        this.onalert?.(donation)
+        this.lastAlert = donation
+    }
+    private _on_update_goal_overlay(message: string)
+    {
+        const json: KoFi.Goal = JSON.parse(message)
+        // this might happen if you update the config on the website but isn't required here
+        if(json.Title.includes(`configreset_${this._options.userKey}`))
+            return this._send_config_alert()
+        const goal: IGoalAlert = {
+            type: "goal",
+            goal: json
+        }
+        this.onalert?.(goal)
+        this.lastAlert = goal
+    }
+    private _on_update_alert_activity(message: string)
+    {
+        const json: KoFi.Activities = JSON.parse(message)
+        const activity: IActivityAlert = {
+            type: "activity",
+            activity: json
+        }
+        this.onalert?.(activity)
+        this.lastAlert = activity
     }
 }
 
-namespace KoFiAlertsClient
+export namespace KoFiAlertsClient
 {
     /**
      * Options for the Ko-Fi client
@@ -113,45 +142,17 @@ namespace KoFiAlertsClient
     export interface IOptions
     {
         /**
-         * The key of the user to get alerts from
+         * The user key of the creator which you can find {@link https://ko-fi.com/streamalerts/settings#streamAlertSection here}
          */
         userKey: string
         /**
-         * The page id of the user
+         * The page id of the creator which you can find {@link https://ko-fi.com/Manage/Zapier here}
          */
         pageId: string
         /**
          * pass option for signalr logger
-         * @see IHttpConnectionOptions
+         * @see {@link IHttpConnectionOptions}
          */
         logger?: IHttpConnectionOptions["logger"]
     }
-    /**
-     * An alert object containing information about a alert
-     */
-    export interface IAlert
-    {
-        /**
-         * The raw HTML code of the alert
-         */
-        raw: string
-        /**
-         * The image of the alert
-         */
-        image?: string
-        /**
-         * Text-To-Speech message if present
-         */
-        tts?: string
-        /**
-         * The name of the donor
-         */
-        name: string
-        /**
-         * The amount of money donated by the donor
-         */
-        amount: number
-    }
 }
-
-export default KoFiAlertsClient

@@ -1,53 +1,109 @@
-const KOFI_NEGOTIATE_TOKEN_URL = "https://ko-fi.com/api/streamalerts/negotiation-token"
-const KOFI_NEGOTIATE_ACCESS_TOKEN_URL = "https://sa-functions.ko-fi.com/api/negotiate"
+import { AccessTokenError, createKoFiTimestamp, TokenError } from "./utils"
 
+/**
+ * The URL endpoint where to receive the token
+ */
+export const KOFI_NEGOTIATE_TOKEN_URL = "https://ko-fi.com/api/streamalerts/negotiation-token"
+/**
+ * The URL endpoint where to receive the access token
+ */
+export const KOFI_NEGOTIATE_ACCESS_TOKEN_URL = "https://sa-functions.ko-fi.com/api/negotiate"
+
+/**
+ * Options to pass through the token negotiation
+ */
 export interface IKofiNegotiateTokenOptions
 {
+    /**
+     * The user key of the creator
+     */
     userKey: string
 }
 
+/**
+ * The response from the server when requesting the token
+ */
 export interface IKofiNegotiateTokenResponse
 {
+    /**
+     * The token from the user key
+     */
     token: string
 }
 
-/** internally used by the client to get the token */
-export async function kofi_negotiate_token(options: IKofiNegotiateTokenOptions): Promise<IKofiNegotiateTokenResponse>
+/**
+ * Get the token with the user key
+ * @param options The options to pass through
+ * @returns The token from the user key
+ * @throws {TokenError} failed to fetch the token in any kind of way (no internet, wrong user key, etc.)
+ */
+export async function negotiateToken(options: IKofiNegotiateTokenOptions): Promise<IKofiNegotiateTokenResponse>
 {
     const url = `${KOFI_NEGOTIATE_TOKEN_URL}?${new URLSearchParams({
         userKey: options.userKey,
         _: Date.now().toString()
     })}`
-    const response = await fetch(url)
-    return await response.json() as IKofiNegotiateTokenResponse
+    try
+    {
+        const response = await fetch(url)
+        return await response.json() as IKofiNegotiateTokenResponse
+    }
+    catch(e)
+    {
+        throw new TokenError(options.userKey,{cause: e})
+    }
 }
 
+/**
+ * Options to pass through the access token negotiation
+ */
 export interface IKofiNegotiateAccessTokenOptions
 {
+    /**
+     * The token from {@link negotiateToken}
+     */
     negotiationToken: string
+    /**
+     * The page id of the creator
+     */
     pageId: string
 }
 
+/**
+ * The response from the server when requesting a access token
+ */
 export interface IKofiNegotiateAccessTokenResponse
 {
+    /**
+     * The URL endpoint of the signalr hub
+     */
     url: string
+    /**
+     * The access token the signalr client has to use
+     */
     accessToken: string
 }
 
-function _create_timestamp()
-{
-    const date = new Date()
-    return `${date.getFullYear()}_${date.getMonth()+1}_${date.getDate()}_${date.getHours()}_${date.getMinutes()}_${date.getSeconds()}_${date.getMilliseconds()}` as const
-}
-
-/** internally used by the client to get the access token, the token from kofi_negotiate_token is required here */
-export async function kofi_negotiate_access_token(options: IKofiNegotiateAccessTokenOptions): Promise<IKofiNegotiateAccessTokenResponse>
+/**
+ * Get the access token with the negotiated token and page id
+ * @param options The options to pass through
+ * @returns The URL endpoint and access token which the signalr client requires
+ * @throws {AccessTokenError} failed to fetch the token in any kind of way (no internet, wrong token/page id, etc.)
+ */
+export async function negotiateAccessToken(options: IKofiNegotiateAccessTokenOptions): Promise<IKofiNegotiateAccessTokenResponse>
 {
     const url = `${KOFI_NEGOTIATE_ACCESS_TOKEN_URL}?${new URLSearchParams({
         negotiationToken: options.negotiationToken,
         pageId: options.pageId,
-        timestamp: _create_timestamp()
+        timestamp: createKoFiTimestamp()
     })}`
-    const response = await fetch(url,{method: "POST"})
-    return await response.json() as IKofiNegotiateAccessTokenResponse
+    try
+    {
+        const response = await fetch(url,{method: "POST"})
+        return await response.json() as IKofiNegotiateAccessTokenResponse
+    }
+    catch(e)
+    {
+        throw new AccessTokenError(options.negotiationToken,options.pageId,{cause: e})
+    }
 }
