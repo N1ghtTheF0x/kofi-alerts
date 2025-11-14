@@ -1,17 +1,17 @@
 {
   "name": "@ntf/kofi-alerts",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Get alerts from Ko-Fi via JavaScript",
   "files": [
-    "./dist/**/*"
+    "dist"
   ],
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.cts",
+  "types": "./dist/index.d.ts",
   "exports": {
     "require": {
-      "types": "./dist/index.d.cts",
-      "default": "./dist/index.cjs"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "import": {
       "types": "./dist/index.d.mts",
@@ -19,16 +19,22 @@
     }
   },
   "scripts": {
-    "build": "pkgroll --src source",
-    "prepublishOnly": "pnpm run build",
-    "test": "tsx ./source/test.ts"
+    "pretest": "pnpm run build",
+    "test": "tsx --tsconfig ./tests/nodejs/tsconfig.json ./tests/nodejs/test.cts",
+    "build:prod": "tsup",
+    "build": "pnpm run build:prod --sourcemap",
+    "prepublishOnly": "npm run build:prod"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/N1ghtTheF0x/kofi-alerts.git"
   },
   "keywords": [
-    "kofi","ko-fi","client","alerts","nodejs","browser","esm","cjs"
+    "kofi","ko-fi","client","alerts",
+    "esm",
+    "cjs",
+    "nodejs",
+    "browser"
   ],
   "author": "N1ghtTheF0x",
   "license": "MIT",
@@ -40,8 +46,10 @@
     "@microsoft/signalr": "latest"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "pkgroll": "latest",
-    "tsx": "latest"
+    "@types/node": "latest",
+    "express": "latest",
+    "tsup": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
   }
 }
