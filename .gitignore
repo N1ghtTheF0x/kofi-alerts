@@ -129,5 +129,5 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-# kofi-alerts
-source/test*
+# Compiled output
+dist
