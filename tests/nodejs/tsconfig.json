@@ -1,0 +1,10 @@
+{
+    "extends": "../../tsconfig.json",
+    "files": ["test.cts"],
+    "include": ["../../dist"],
+    "compilerOptions": {
+        "module": "CommonJS",
+        "moduleResolution": "Node",
+        "types": ["node"]
+    }
+}
