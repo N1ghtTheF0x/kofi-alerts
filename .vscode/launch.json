@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:43434/test.html",
+            "name": "Test Browser",
+            "server":{
+                "program": "${workspaceFolder}/scripts/server.cjs"
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Test NodeJS",
+            "program": "${workspaceFolder}/tests/nodejs/test.cts",
+            "runtimeExecutable": "tsx",
+            "runtimeArgs": [
+                "--tsconfig",
+                "${workspaceFolder}/tests/nodejs/tsconfig.json"
+            ]
+        }
+    ]
+}
