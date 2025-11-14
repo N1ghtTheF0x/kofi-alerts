@@ -39,13 +39,11 @@ export interface IKofiNegotiateTokenResponse
  */
 export async function negotiateToken(options: IKofiNegotiateTokenOptions): Promise<IKofiNegotiateTokenResponse>
 {
-    const url = `${KOFI_NEGOTIATE_TOKEN_URL}?${new URLSearchParams({
-        userKey: options.userKey,
-        _: Date.now().toString()
-    })}`
+    const url = `${KOFI_NEGOTIATE_TOKEN_URL}?userKey=${options.userKey}&_=${Date.now().toString()}`
     try
     {
-        const response = await fetch(url)
+        // @ts-ignore
+        const response = await fetch(url,{headers: {"User-Agent": `${PKG_NAME}/${PKG_VERSION}`}})
         return await response.json() as IKofiNegotiateTokenResponse
     }
     catch(e)
@@ -92,14 +90,11 @@ export interface IKofiNegotiateAccessTokenResponse
  */
 export async function negotiateAccessToken(options: IKofiNegotiateAccessTokenOptions): Promise<IKofiNegotiateAccessTokenResponse>
 {
-    const url = `${KOFI_NEGOTIATE_ACCESS_TOKEN_URL}?${new URLSearchParams({
-        negotiationToken: options.negotiationToken,
-        pageId: options.pageId,
-        timestamp: createKoFiTimestamp()
-    })}`
+    const url = `${KOFI_NEGOTIATE_ACCESS_TOKEN_URL}?negotiationToken=${options.negotiationToken}&pageId=${options.pageId}&timestamp=${createKoFiTimestamp()}`
     try
     {
-        const response = await fetch(url,{method: "POST"})
+        // @ts-ignore
+        const response = await fetch(url,{method: "POST",headers: {"User-Agent": `${PKG_NAME}/${PKG_VERSION}`}})
         return await response.json() as IKofiNegotiateAccessTokenResponse
     }
     catch(e)
